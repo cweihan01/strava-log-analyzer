@@ -2,9 +2,11 @@ import argparse
 import sys
 import json
 import math
+import datetime
+import requests
 
 
-def get_data_from_file(filename: str) -> dict:
+def get_data_from_file(filename: str) -> list[dict]:
     """
     Open local file containing log data and parse json as Python object.
 
@@ -17,8 +19,50 @@ def get_data_from_file(filename: str) -> dict:
     return data
 
 
-def get_data_from_server(endpoint: str, days: int) -> dict:
-    pass
+def get_data_from_server(endpoint: str, days: int) -> list[dict]:
+    """
+    Fetch index data from the API for the past `days` days.
+
+    Each API call requests 1 day worth of data (e.g. if today is April 15, 2025, the 
+    parameters would be year 2025, month 04, day 14).
+
+    :param endpoint: base URL of the logging endpoint (no trailing slash)
+    :param days: number of days to fetch in total; minimum 1 (only yesterday)
+
+    :returns data: list of entries as Python dicts from all `days` days
+    """
+    if not endpoint:
+        raise Exception("no endpoint provided")
+    if not isinstance(days, int) or days < 1:
+        raise Exception("must at least request 1 day")
+
+    all_data: list[dict] = []
+    today = datetime.date.today()
+
+    # For each day starting from yesterday and moving backwards, retrieve day's data
+    for i in range(days):
+        # i=0: yesterday; i=1: day before yesterday; etc
+        date = today - datetime.timedelta(days=i + 1)
+        # Eg: y=2025, m=04, d=14
+        y, m, d = date.strftime("%Y"), date.strftime("%m"), date.strftime("%d")
+
+        # Build url and make request
+        url = (
+            f"https://{endpoint}/_cat/indices/*{y}*{m}*{d}"
+            f"?v&h=index,pri.store.size,pri&format=json&bytes=b"
+        )
+        response = requests.get(url)
+        response.raise_for_status()
+
+        # Collect data and ensure correct format
+        day_data = response.json()
+        if not isinstance(day_data, list):
+            raise Exception(f"expected list from API, got {type(day_data)}")
+
+        # Append to all data
+        all_data.extend(day_data)
+
+    return all_data
 
 
 def _convert_byte_to_gb(size: str | int) -> float:
