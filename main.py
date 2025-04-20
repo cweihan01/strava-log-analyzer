@@ -199,14 +199,17 @@ def main():
                         help="Debug flag used to run locally")
     parser.add_argument("--days", type=int, default=7,
                         help="Number of days of data to parse")
+    parser.add_argument("--file", type=str, default="indexes.json",
+                        help="Path to local JSON file (debug mode only)")
     args = parser.parse_args()
 
     data = None
 
     if args.debug:
         try:
+            data = get_data_from_file(args.file)
             # data = get_data_from_file("indexes.json")
-            data = get_data_from_file("example-in.json")
+            # data = get_data_from_file("example-in.json")
         except Exception as err:
             sys.exit("Error reading data from file. Error: " + str(err))
     else:
