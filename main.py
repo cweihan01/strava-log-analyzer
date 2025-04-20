@@ -1,6 +1,7 @@
 import argparse
 import sys
 import json
+import math
 
 
 def get_data_from_file(filename: str) -> dict:
@@ -29,6 +30,19 @@ def _convert_byte_to_gb(size: str | int) -> float:
     :returns size_gb: size in GB, as a float
     """
     return int(size) / (10 ** 9)
+
+
+def _get_balance_ratio(entry: dict) -> float:
+    """
+    Helper function that calculates GB-to-shard ratio for a given log entry.
+
+    :param dict entry: a single log entry
+
+    :returns ratio: GB-to-shard ratio, as a float
+    """
+    size_gb = _convert_byte_to_gb(entry["pri.store.size"])
+    shards = int(entry["pri"])
+    return size_gb / shards if shards > 0 else float("inf")
 
 
 def print_largest_indexes(data: dict) -> None:
@@ -87,7 +101,50 @@ def print_most_shards(data: dict) -> None:
 
 
 def print_least_balanced(data: dict) -> None:
-    pass
+    """
+    Print the top 5 biggest offenders with the highest GB-to-shard ratio and offer
+    a new shard count recommendation.
+
+    An index should have 1 shard for every 30 GB of data it stores.
+
+    For example, an index with 2,000 GB and 20 shards has a “ratio” of 100. Ideally,
+    this index should have at least 67 shards allocated.
+
+    :param dict data: Python object containing log data
+
+    Print format:
+    ```
+    Printing least balanced indexes
+    Index: secluded
+    Size: 689.54 GB
+    Shards: 1
+    Balance Ratio: 689
+    Recommended shard count is 22
+    Index: puzzle
+    Size: 506.28 GB
+    Shards: 1
+    Balance Ratio: 506
+    Recommended shard count is 16
+    ...
+    ```
+    """
+    # Sort descending by GB-to-shard (balance) ratio
+    top5_offenders = sorted(data, key=lambda x: _get_balance_ratio(x), reverse=True)[:5]
+
+    print("\nPrinting least balanced indexes")
+    for x in top5_offenders:
+        index = x["index"]
+        size_gb = _convert_byte_to_gb(x["pri.store.size"])
+        shards = x["pri"]
+        ratio = _get_balance_ratio(x)
+        # ASSUME round up recommended shards, and minimum 1 shard allocated unless size=0
+        recommended = max(1, math.ceil(size_gb / 30)) if size_gb > 0 else 0
+
+        print(f"Index: {index}")
+        print(f"Size: {size_gb:.2f} GB")
+        print(f"Shards: {shards}")
+        print(f"Balance Ratio: {math.floor(ratio)}")  # ASSUME round down balance ratio
+        print(f"Recommended shard count is {recommended}")
 
 
 def main():
