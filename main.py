@@ -37,7 +37,7 @@ def print_largest_indexes(data: dict) -> None:
 
     :param dict data: Python object containing log data
 
-    Format:
+    Print format:
     ```
     Printing largest indexes by storage size
     Index: express
@@ -60,7 +60,30 @@ def print_largest_indexes(data: dict) -> None:
 
 
 def print_most_shards(data: dict) -> None:
-    pass
+    """
+    Print the top 5 indexes by shard count.
+
+    :param dict data: Python object containing log data
+
+    Print format:
+    ```
+    Printing largest indexes by shard count
+    Index: spry
+    Shards: 20
+    Index: bulldog
+    Shards: 13
+    ...
+    ```
+    """
+    # Sort descending by shard count
+    top5_shards = sorted(data, key=lambda x: int(x["pri"]), reverse=True)[:5]
+
+    # Print each index and shard count
+    print("\nPrinting largest indexes by shard count")
+    for x in top5_shards:
+        index, shards = x["index"], int(x["pri"])
+        print(f"Index: {index}")
+        print(f"Shards: {shards}")
 
 
 def print_least_balanced(data: dict) -> None:
